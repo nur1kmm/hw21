@@ -10,16 +10,11 @@ func NewBlockchain() *Blockchain {
 	return &Blockchain{blocks: []*Block{NewGenesisBlock()}}
 }
 
-// NewGenesisBlock creates and returns the genesis block
-func NewGenesisBlock() *Block {
-	return NewBlock("Genesis Block", []byte{})
-}
-
 // AddBlock adds a new block to the blockchain
 func (bc *Blockchain) AddBlock(data string) {
 	prevBlock := bc.blocks[len(bc.blocks)-1]
 	newBlock := NewBlock(data, prevBlock.Hash)
-	newBlock.SetHash()
+	// No need to call SetHash anymore as it's done in NewBlock with PoW
 	bc.blocks = append(bc.blocks, newBlock)
 }
 

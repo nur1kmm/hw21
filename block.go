@@ -27,10 +27,23 @@ func NewBlock(data string, prevBlockHash []byte) *Block {
 		Hash:          []byte{},
 		Nonce:         0,
 	}
+	
+	// Mine the block with proof of work
+	pow := NewProofOfWork(block)
+	nonce, hash := pow.Run()
+	
+	block.Hash = hash[:]
+	block.Nonce = nonce
+	
 	return block
 }
 
-// SetHash calculates and sets the hash of the block
+// NewGenesisBlock creates and returns the genesis block
+func NewGenesisBlock() *Block {
+	return NewBlock("Genesis Block", []byte{})
+}
+
+// SetHash calculates and sets the hash of the block (deprecated with PoW)
 func (b *Block) SetHash() {
 	timestamp := []byte(strconv.FormatInt(b.Timestamp, 10))
 	headers := bytes.Join([][]byte{b.PrevBlockHash, b.Data, timestamp}, []byte{})
