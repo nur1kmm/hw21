@@ -9,6 +9,7 @@ func main() {
 	
 	// Create a new blockchain
 	bc := NewBlockchain()
+	defer bc.Close()
 	
 	// Add some blocks to the blockchain
 	bc.AddBlock("First block")
@@ -16,12 +17,24 @@ func main() {
 	bc.AddBlock("Third block")
 	
 	// Print all blocks
-	for i, block := range bc.GetBlocks() {
-		fmt.Printf("Block %d:\n", i)
+	bci := bc.Iterator()
+	
+	for {
+		block := bci.Next()
+		if block == nil {
+			break
+		}
+		
+		fmt.Printf("Block %x:\n", block.Hash)
 		fmt.Printf("  Timestamp: %d\n", block.Timestamp)
 		fmt.Printf("  Data: %s\n", block.Data)
 		fmt.Printf("  Previous Hash: %x\n", block.PrevBlockHash)
 		fmt.Printf("  Hash: %x\n", block.Hash)
+		fmt.Printf("  Nonce: %d\n", block.Nonce)
 		fmt.Println()
+		
+		if len(block.PrevBlockHash) == 0 {
+			break
+		}
 	}
 }
