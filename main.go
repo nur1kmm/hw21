@@ -4,8 +4,9 @@ import (
 	"fmt"
 )
 
+// main is the command-line entry point for the blockchain
 func main() {
-	fmt.Println("Blockchain implementation in Go")
+	fmt.Println("Blockchain implementation in Go (Command-line version)")
 	
 	// Create a new blockchain
 	bc := NewBlockchain()
