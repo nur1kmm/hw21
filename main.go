@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	
+	"github.com/nur1kmm/hw21/blockchain"
 )
 
 // main is the command-line entry point for the blockchain
@@ -9,7 +11,7 @@ func main() {
 	fmt.Println("Blockchain implementation in Go (Command-line version)")
 	
 	// Create a new blockchain
-	bc := NewBlockchain()
+	bc := blockchain.NewBlockchain()
 	defer bc.Close()
 	
 	// Add some blocks to the blockchain
