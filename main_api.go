@@ -3,13 +3,15 @@ package main
 import (
 	"fmt"
 	"log"
+	
+	"github.com/nur1kmm/hw21/blockchain"
 )
 
 func main() {
 	fmt.Println("Blockchain API Server")
 	
 	// Create a new blockchain
-	bc := NewBlockchain()
+	bc := blockchain.NewBlockchain()
 	defer bc.Close()
 	
 	// Create and start the API server
