@@ -8,16 +8,17 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/nur1kmm/hw21/blockchain"
 )
 
 // APIServer represents the API server
 type APIServer struct {
-	blockchain *Blockchain
+	blockchain *blockchain.Blockchain
 	router     *mux.Router
 }
 
 // NewAPIServer creates a new API server
-func NewAPIServer(blockchain *Blockchain) *APIServer {
+func NewAPIServer(blockchain *blockchain.Blockchain) *APIServer {
 	router := mux.NewRouter()
 	server := &APIServer{
 		blockchain: blockchain,
