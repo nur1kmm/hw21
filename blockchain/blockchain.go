@@ -18,8 +18,6 @@ func NewBlockchain() *Blockchain {
 		log.Panic(err)
 	}
 
-	var tip []byte
-
 	// Check if the blocks bucket exists
 	err = db.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte("blocks"))
@@ -40,11 +38,6 @@ func NewBlockchain() *Blockchain {
 			if err != nil {
 				return err
 			}
-			
-			tip = genesis.Hash
-		} else {
-			// Get the tip of the blockchain
-			tip = bucket.Get([]byte("l"))
 		}
 		
 		return nil
