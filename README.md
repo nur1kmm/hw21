@@ -24,7 +24,7 @@ This is a self-written blockchain implementation in Go that demonstrates the cor
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/nur1kmm/hw21
    cd hw21
    ```
 
