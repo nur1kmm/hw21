@@ -1,8 +1,17 @@
 package blockchain
 
 import (
+	"errors"
 	"go.etcd.io/bbolt"
-	"log"
+)
+
+const (
+	blocksBucket = "blocks"
+	lastHashKey  = "l"
+)
+
+var (
+	ErrBlockNotFound = errors.New("block not found")
 )
 
 // Database represents the blockchain database
@@ -11,65 +20,75 @@ type Database struct {
 }
 
 // NewDatabase creates a new database instance
-func NewDatabase(dbFile string) *Database {
+func NewDatabase(dbFile string) (*Database, error) {
 	db, err := bbolt.Open(dbFile, 0600, nil)
 	if err != nil {
-		log.Panic(err)
+		return nil, err
 	}
 
-	// Create the blocks bucket if it doesn't exist
 	err = db.Update(func(tx *bbolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte("blocks"))
+		_, err := tx.CreateBucketIfNotExists([]byte(blocksBucket))
 		return err
 	})
 	if err != nil {
-		log.Panic(err)
+		return nil, err
 	}
 
-	return &Database{db: db}
+	return &Database{db: db}, nil
 }
 
 // Close closes the database connection
 func (db *Database) Close() {
-	err := db.db.Close()
-	if err != nil {
-		log.Panic(err)
-	}
+	db.db.Close()
+}
+
+// GetLastBlockHash retrieves the hash of the last block in the blockchain
+func (db *Database) GetLastBlockHash() ([]byte, error) {
+	var lastHash []byte
+	err := db.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(blocksBucket))
+		lastHash = b.Get([]byte(lastHashKey))
+		return nil
+	})
+	return lastHash, err
 }
 
 // AddBlock adds a block to the database
-func (db *Database) AddBlock(block *Block) {
-	err := db.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("blocks"))
-		serialized := block.Serialize()
-		return b.Put(block.Hash, serialized)
+func (db *Database) AddBlock(block *Block) error {
+	return db.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(blocksBucket))
+		return b.Put(block.Hash, block.Serialize())
 	})
-	if err != nil {
-		log.Panic(err)
-	}
+}
+
+// UpdateLastBlockHash updates the last block hash in the database
+func (db *Database) UpdateLastBlockHash(hash []byte) error {
+	return db.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(blocksBucket))
+		return b.Put([]byte(lastHashKey), hash)
+	})
 }
 
 // GetBlock retrieves a block from the database by its hash
-func (db *Database) GetBlock(hash []byte) *Block {
+func (db *Database) GetBlock(hash []byte) (*Block, error) {
 	var block *Block
-
 	err := db.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("blocks"))
-		serialized := b.Get(hash)
-		if serialized == nil {
-			return nil
+		b := tx.Bucket([]byte(blocksBucket))
+		blockData := b.Get(hash)
+		if blockData == nil {
+			return ErrBlockNotFound
 		}
-		block = DeserializeBlock(serialized)
+		block = DeserializeBlock(blockData)
 		return nil
 	})
-	if err != nil {
-		log.Panic(err)
-	}
-
-	return block
+	return block, err
 }
 
-// GetBlockchainIterator returns an iterator for the blockchain
-func (db *Database) GetBlockchainIterator() *BlockchainIterator {
-	return &BlockchainIterator{db: db.db, currentHash: []byte{}}
+// Iterator returns a blockchain iterator
+func (db *Database) Iterator() *BlockchainIterator {
+	lastHash, _ := db.GetLastBlockHash()
+	return &BlockchainIterator{
+		currentHash: lastHash,
+		db:          db.db,
+	}
 }

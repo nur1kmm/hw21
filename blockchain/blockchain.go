@@ -1,132 +1,91 @@
 package blockchain
 
 import (
-	"go.etcd.io/bbolt"
 	"log"
 )
 
+const dbFile = "blockchain.db"
+
 // Blockchain represents the blockchain structure
 type Blockchain struct {
-	db *bbolt.DB
+	db *Database
 }
 
 // NewBlockchain creates a new blockchain with a genesis block
-func NewBlockchain() *Blockchain {
-	dbFile := "blockchain.db"
-	db, err := bbolt.Open(dbFile, 0600, nil)
+func NewBlockchain() (*Blockchain, error) {
+	db, err := NewDatabase(dbFile)
 	if err != nil {
-		log.Panic(err)
+		return nil, err
 	}
 
-	// Check if the blocks bucket exists
-	err = db.Update(func(tx *bbolt.Tx) error {
-		bucket := tx.Bucket([]byte("blocks"))
-		if bucket == nil {
-			// Create the blocks bucket and genesis block
-			bucket, err := tx.CreateBucket([]byte("blocks"))
-			if err != nil {
-				return err
-			}
-			
-			genesis := NewGenesisBlock()
-			err = bucket.Put(genesis.Hash, genesis.Serialize())
-			if err != nil {
-				return err
-			}
-			
-			err = bucket.Put([]byte("l"), genesis.Hash)
-			if err != nil {
-				return err
-			}
+	lastHash, err := db.GetLastBlockHash()
+	if err != nil {
+		return nil, err
+	}
+
+	if lastHash == nil {
+		genesis := NewGenesisBlock()
+		if err := db.AddBlock(genesis); err != nil {
+			return nil, err
 		}
-		
-		return nil
-	})
-	if err != nil {
-		log.Panic(err)
+		if err := db.UpdateLastBlockHash(genesis.Hash); err != nil {
+			return nil, err
+		}
 	}
 
-	return &Blockchain{db: db}
+	return &Blockchain{db: db}, nil
 }
 
 // AddBlock adds a new block to the blockchain
-func (bc *Blockchain) AddBlock(data string) {
-	var lastHash []byte
-	
-	// Get the hash of the last block
-	err := bc.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("blocks"))
-		lastHash = b.Get([]byte("l"))
-		return nil
-	})
+func (bc *Blockchain) AddBlock(data string) error {
+	lastHash, err := bc.db.GetLastBlockHash()
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
-	
-	// Create and mine the new block
+
 	newBlock := NewBlock(data, lastHash)
-	
-	// Save the new block to the database
-	err = bc.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("blocks"))
-		err := b.Put(newBlock.Hash, newBlock.Serialize())
-		if err != nil {
-			return err
-		}
-		
-		err = b.Put([]byte("l"), newBlock.Hash)
-		if err != nil {
-			return err
-		}
-		
-		return nil
-	})
-	if err != nil {
-		log.Panic(err)
+
+	if err := bc.db.AddBlock(newBlock); err != nil {
+		return err
 	}
+
+	if err := bc.db.UpdateLastBlockHash(newBlock.Hash); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetBlocks returns all blocks in the blockchain
-func (bc *Blockchain) GetBlocks() []*Block {
+func (bc *Blockchain) GetBlocks() ([]*Block, error) {
 	var blocks []*Block
-	
-	bci := bc.Iterator()
-	
+	iter := bc.Iterator()
+
 	for {
-		block := bci.Next()
-		if block == nil {
-			break
+		block, err := iter.Next()
+		if err != nil {
+			if err == ErrBlockNotFound {
+				break
+			}
+			return nil, err
 		}
+
 		blocks = append(blocks, block)
-		
+
 		if len(block.PrevBlockHash) == 0 {
 			break
 		}
 	}
-	
-	return blocks
+
+	return blocks, nil
 }
 
 // Iterator returns a blockchain iterator
 func (bc *Blockchain) Iterator() *BlockchainIterator {
-	var tip []byte
-	
-	err := bc.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("blocks"))
-		tip = b.Get([]byte("l"))
-		return nil
-	})
-	if err != nil {
-		log.Panic(err)
-	}
-	
-	return &BlockchainIterator{db: bc.db, currentHash: tip}
+	return bc.db.Iterator()
 }
 
 // Close closes the database connection
 func (bc *Blockchain) Close() {
-	err := bc.db.Close()
-	if err != nil {
-		log.Panic(err)
-	}
+	bc.db.Close()
 }

@@ -2,40 +2,34 @@ package blockchain
 
 import (
 	"go.etcd.io/bbolt"
-	"log"
 )
 
 // BlockchainIterator is used to iterate over blockchain blocks
 type BlockchainIterator struct {
-	db          *bbolt.DB
 	currentHash []byte
+	db          *bbolt.DB
 }
 
-// Next returns the next block in the blockchain
-func (i *BlockchainIterator) Next() *Block {
+// Next returns the next block from the blockchain
+func (i *BlockchainIterator) Next() (*Block, error) {
 	var block *Block
 
 	err := i.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("blocks"))
-		serialized := b.Get(i.currentHash)
-		if serialized == nil {
-			return nil
+		b := tx.Bucket([]byte(blocksBucket))
+		encodedBlock := b.Get(i.currentHash)
+		if encodedBlock == nil {
+			return ErrBlockNotFound
 		}
-		block = DeserializeBlock(serialized)
+
+		block = DeserializeBlock(encodedBlock)
+		i.currentHash = block.PrevBlockHash
+
 		return nil
 	})
+
 	if err != nil {
-		log.Panic(err)
+		return nil, err
 	}
 
-	if block != nil {
-		i.currentHash = block.PrevBlockHash
-	}
-
-	return block
-}
-
-// HasNext checks if there are more blocks to iterate
-func (i *BlockchainIterator) HasNext() bool {
-	return len(i.currentHash) > 0
+	return block, nil
 }
