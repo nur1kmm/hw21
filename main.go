@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 
@@ -40,14 +41,12 @@ func (cli *CLI) Run() {
 	case "add":
 		err := addCmd.Parse(os.Args[2:])
 		if err != nil {
-			fmt.Println("Error parsing arguments:", err)
-			os.Exit(1)
+			log.Panic(err)
 		}
 	case "print":
 		err := printCmd.Parse(os.Args[2:])
 		if err != nil {
-			fmt.Println("Error parsing arguments:", err)
-			os.Exit(1)
+			log.Panic(err)
 		}
 	default:
 		cli.printUsage()
@@ -69,38 +68,42 @@ func (cli *CLI) Run() {
 
 // addBlock adds a new block to the blockchain
 func (cli *CLI) addBlock(data string) {
-	bc := blockchain.NewBlockchain()
+	bc, err := blockchain.NewBlockchain()
+	if err != nil {
+		log.Panic(err)
+	}
 	defer bc.Close()
-	bc.AddBlock(data)
+
+	err = bc.AddBlock(data)
+	if err != nil {
+		log.Panic(err)
+	}
+
 	fmt.Println("Success!")
 }
 
 // printChain prints all the blocks in the blockchain
 func (cli *CLI) printChain() {
-	bc := blockchain.NewBlockchain()
+	bc, err := blockchain.NewBlockchain()
+	if err != nil {
+		log.Panic(err)
+	}
 	defer bc.Close()
-	bci := bc.Iterator()
 
-	for {
-		block := bci.Next()
-		if block == nil {
-			break
-		}
+	blocks, err := bc.GetBlocks()
+	if err != nil {
+		log.Panic(err)
+	}
 
+	for _, block := range blocks {
 		fmt.Printf("Prev. hash: %x\n", block.PrevBlockHash)
 		fmt.Printf("Data: %s\n", block.Data)
 		fmt.Printf("Hash: %x\n", block.Hash)
 		pow := blockchain.NewProofOfWork(block)
-		fmt.Printf("PoW: %s\n", strconv.FormatBool(pow.Validate()))
-		fmt.Println()
-
-		if len(block.PrevBlockHash) == 0 {
-			break
-		}
+		fmt.Printf("PoW: %s\n\n", strconv.FormatBool(pow.Validate()))
 	}
 }
 
-// main is the command-line entry point for the blockchain
 func main() {
 	cli := CLI{}
 	cli.Run()
